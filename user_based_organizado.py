@@ -16,6 +16,7 @@ class Recomendador:
         # Divide o conjunto de treino em base e validação com a mesma proporção
         self.X_base, self.X_validacao = train_test_split(X_treino, test_size=test_size, random_state=random_state)
         self.X_teste = X_teste  # Define o conjunto de teste
+        self.u_medias = self.user_media(X_base)
 
     def itens_comuns(self, u, v):
         # Retorna os índices dos itens avaliados em comum pelos usuários u e v
@@ -26,6 +27,11 @@ class Recomendador:
         sum_u = sum([u[i]**2 for i in range(len(u)) if u[i] != 0])
         sum_v = sum([v[i]**2 for i in range(len(v)) if v[i] != 0])
         return math.sqrt(sum_u * sum_v)
+
+    def user_media(self,df):
+        #calcula a média de usuarios dentro da matriz
+        media_usuarios = df.groupby('id_user')['ratings'].mean()
+        return media_usuarios
 
     def similaridade_cosseno(self, matriz, row):
         # Calcula a matriz de similaridade cosseno entre os usuários
@@ -65,6 +71,8 @@ class Recomendador:
         # Prever a avaliação de um item por um usuário
         if usuario >= len(self.matriz_similaridade_usuario) or item >= self.matriz_usuario_item.shape[1]:
             return np.nan
+
+        
         
         vetor_similaridade = self.matriz_similaridade_usuario[usuario]
         vetor_similaridade[usuario] = 0  # Similaridade do usuário com ele mesmo é desconsiderada
@@ -78,12 +86,13 @@ class Recomendador:
 
         avaliacoes = self.matriz_usuario_item.iloc[usuarios_similares, item]
         similaridades = vetor_similaridade[usuarios_similares]
+        ajuste = self.u_medias[usuarios_similares]
 
         if np.sum(similaridades) == 0:
             return np.nan
         
         # Calcula a previsão como o produto ponto entre avaliações e similaridades, dividido pela soma das similaridades
-        return np.dot(avaliacoes, similaridades) / np.sum(similaridades)
+        return self.u_medias[usuario] + (similaridades*(avaliacoes - ajuste)/ np.sum(similaridades))
 
 
 class Avaliador:
